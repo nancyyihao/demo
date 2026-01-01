@@ -37,6 +37,10 @@
           ]
         }
       ]
+    },
+    {
+      "name": "render",
+      "srcPath": "./render",
     }
   ]
 }

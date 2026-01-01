@@ -1,0 +1,10 @@
+{
+  "module": {
+    "name": "render",
+    "type": "har",
+    "deviceTypes": [
+      "default",
+      "tablet"
+    ]
+  }
+}
