@@ -40,8 +40,13 @@ void RenderThread::UpdateSize(int width, int height) {
 
 void RenderThread::TogglePause() {
     PostTask([this]() {
+        bool wasPaused = paused_;
         paused_ = !paused_;
         LOGI("RenderThread TogglePause (Task): %d", paused_);
+        if (wasPaused && !paused_ && running_ && nativeVSync_) {
+            // Restart VSync loop if we just unpaused
+            OH_NativeVSync_RequestFrame(nativeVSync_, &RenderThread::OnVSync, this);
+        }
     });
 }
 
