@@ -1,14 +1,19 @@
-import testNapi from 'librender.so';
+
+
+interface RenderContext {
+  togglePause(): void;
+}
 
 @Component
 export struct RenderView {
-  private xComponentContext: object | undefined = undefined;
+  @Require @Prop renderId: string;
+  private xComponentContext: RenderContext | undefined = undefined;
 
   build() {
     Column() {
-      XComponent({ id: 'render_id', type: 'surface', libraryname: 'render' })
+      XComponent({ id: this.renderId, type: 'surface', libraryname: 'render' })
         .onLoad((context) => {
-          this.xComponentContext = context;
+          this.xComponentContext = context as RenderContext;
           console.info('Load XComponent');
         })
         .onDestroy(() => {
@@ -19,7 +24,7 @@ export struct RenderView {
         .onClick(() => {
           if (this.xComponentContext) {
             console.info('Click XComponent');
-            testNapi.togglePause();
+            this.xComponentContext.togglePause();
           }
         })
     }

@@ -4,12 +4,17 @@ import { RenderView } from 'render';
 @Component
 struct Index {
   build() {
-    RelativeContainer() {
-      RenderView()
-        .alignRules({
-          center: { anchor: '__container__', align: VerticalAlign.Center },
-          middle: { anchor: '__container__', align: HorizontalAlign.Center }
-        })
+    Column() {
+      RenderView({ renderId: 'render_view_1' })
+        .width('100%')
+        .height('50%')
+      
+      // Divider for visual separation
+      Divider().color(Color.Black).strokeWidth(2)
+      
+      RenderView({ renderId: 'render_view_2' })
+        .width('100%')
+        .height('50%')
     }
     .height('100%')
     .width('100%')

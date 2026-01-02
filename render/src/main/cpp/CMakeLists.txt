@@ -15,6 +15,8 @@ add_library(render SHARED
     napi_init.cpp
     plugin_render.cpp
     render_thread.cpp
+    egl_core.cpp
+    samples/sine_wave_renderer.cpp
 )
 target_link_libraries(render PUBLIC 
     libace_napi.z.so
@@ -22,4 +24,5 @@ target_link_libraries(render PUBLIC
     libEGL.so
     libGLESv3.so
     libhilog_ndk.z.so
+    libnative_vsync.so
 )

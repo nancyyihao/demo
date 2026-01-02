@@ -1,49 +1,122 @@
 #include "plugin_render.h"
 #include "render_common.h"
 #include <ace/xcomponent/native_interface_xcomponent.h>
+#include <js_native_api.h>
+#include <js_native_api_types.h>
+#include <string>
+#include "samples/sine_wave_renderer.h"
 
-PluginRender* PluginRender::instance_ = nullptr;
+std::unordered_map<std::string, PluginRender*> PluginRender::instanceMap_;
 
-PluginRender* PluginRender::GetInstance() {
-    if (instance_ == nullptr) {
-        instance_ = new PluginRender();
+PluginRender* PluginRender::GetInstance(std::string& id) {
+    if (instanceMap_.find(id) == instanceMap_.end()) {
+        return nullptr;
     }
-    return instance_;
+    return instanceMap_[id];
+}
+
+void PluginRender::ReleaseInstance(std::string& id) {
+    if (instanceMap_.find(id) != instanceMap_.end()) {
+        PluginRender* instance = instanceMap_[id];
+        delete instance;
+        instanceMap_.erase(id);
+    }
+}
+
+PluginRender::PluginRender(std::string& id) : id_(id) {
+    instanceMap_[id] = this;
+}
+
+PluginRender::~PluginRender() {
+    if (renderThread_) {
+        delete renderThread_;
+    }
+    if (renderer_) {
+        delete renderer_;
+    }
+}
+
+napi_value PluginRender::Init(napi_env env, napi_value exports) {
+    // We don't create instance here anymore. We wait for XComponent ID injection.
+    // However, the current template injects ID via separate method or we just handle wrapping.
+    // Actually, usually Init is called once per module load.
+    // We need to export a Constructor or Factory method.
+    // BUT for simplicity in this demo, let's keep the `togglePause` method on the prototype 
+    // or instance.
+    // The previous code had `PluginRender::GetInstance()->Export`.
+    
+    // Updated Logic:
+    // 1. Export `togglePause` essentially as a method that operates on `this` context?
+    // ArkTS code: `testNapi.togglePause()` was called on the module.
+    // To support multi-instance: `context.togglePause()` where context is the instance.
+    
+    napi_property_descriptor desc[] = {
+        {"togglePause", nullptr, PluginRender::TogglePause, nullptr, nullptr, nullptr, napi_default, nullptr}
+    };
+    napi_define_properties(env, exports, sizeof(desc) / sizeof(desc[0]), desc);
+    
+    return exports;
 }
 
 // Static Callbacks mapping to instance methods
+// Challenge: callback only gives component + window.
+// We need to map component -> instance.
+// OH_NativeXComponent_GetXComponentId is key.
+
 void PluginRender::OnSurfaceCreatedCB(OH_NativeXComponent* component, void* window) {
-    if (instance_) instance_->OnSurfaceCreated(component, window);
+    char idStr[OH_XCOMPONENT_ID_LEN_MAX + 1] = {};
+    uint64_t idSize = OH_XCOMPONENT_ID_LEN_MAX + 1;
+    if (OH_NativeXComponent_GetXComponentId(component, idStr, &idSize) == OH_NATIVEXCOMPONENT_RESULT_SUCCESS) {
+        std::string id(idStr);
+        PluginRender* instance = GetInstance(id);
+        if (instance) instance->OnSurfaceCreated(component, window);
+    }
 }
 
 void PluginRender::OnSurfaceChangedCB(OH_NativeXComponent* component, void* window) {
-    if (instance_) instance_->OnSurfaceChanged(component, window);
+    char idStr[OH_XCOMPONENT_ID_LEN_MAX + 1] = {};
+    uint64_t idSize = OH_XCOMPONENT_ID_LEN_MAX + 1;
+    if (OH_NativeXComponent_GetXComponentId(component, idStr, &idSize) == OH_NATIVEXCOMPONENT_RESULT_SUCCESS) {
+         std::string id(idStr);
+         PluginRender* instance = GetInstance(id);
+         if (instance) instance->OnSurfaceChanged(component, window);
+    }
 }
 
 void PluginRender::OnSurfaceDestroyedCB(OH_NativeXComponent* component, void* window) {
-    if (instance_) instance_->OnSurfaceDestroyed(component, window);
+    char idStr[OH_XCOMPONENT_ID_LEN_MAX + 1] = {};
+    uint64_t idSize = OH_XCOMPONENT_ID_LEN_MAX + 1;
+    if (OH_NativeXComponent_GetXComponentId(component, idStr, &idSize) == OH_NATIVEXCOMPONENT_RESULT_SUCCESS) {
+         std::string id(idStr);
+         PluginRender* instance = GetInstance(id);
+         if (instance) instance->OnSurfaceDestroyed(component, window);
+    }
 }
 
 void PluginRender::DispatchTouchEventCB(OH_NativeXComponent* component, void* window) {
-    if (instance_) instance_->DispatchTouchEvent(component, window);
-}
-
-void PluginRender::Export(napi_env env, napi_value exports) {
-    if (env == nullptr || exports == nullptr) {
-        return;
+    char idStr[OH_XCOMPONENT_ID_LEN_MAX + 1] = {};
+    uint64_t idSize = OH_XCOMPONENT_ID_LEN_MAX + 1;
+    if (OH_NativeXComponent_GetXComponentId(component, idStr, &idSize) == OH_NATIVEXCOMPONENT_RESULT_SUCCESS) {
+         std::string id(idStr);
+         PluginRender* instance = GetInstance(id);
+         if (instance) instance->DispatchTouchEvent(component, window);
     }
-    napi_value exportInstance = nullptr;
-    if (napi_get_reference_value(env, nullptr, &exportInstance) != napi_ok) {
-        // Handle error handling if needed, but for simple export:
-    }
-    // In this simple case, we are just exporting global functions or properties if needed.
-    // The main NAPI export is handled in napi_init.cpp
 }
 
 napi_value PluginRender::TogglePause(napi_env env, napi_callback_info info) {
     LOGI("TogglePause called");
-    if (instance_ && instance_->renderThread_) {
-        instance_->renderThread_->TogglePause();
+    // How do we get the instance?
+    // We can wrap the instance into the 'this' object of the callback info.
+    // napi_unwrap(env, thisVar, (void**)&instance);
+    
+    napi_value thisVar = nullptr;
+    napi_get_cb_info(env, info, nullptr, nullptr, &thisVar, nullptr);
+    
+    PluginRender* instance = nullptr;
+    napi_unwrap(env, thisVar, (void**)&instance);
+    
+    if (instance && instance->renderThread_) {
+        instance->renderThread_->TogglePause();
     }
     return nullptr;
 }
@@ -56,20 +129,25 @@ void PluginRender::SetNativeXComponent(std::string& id, OH_NativeXComponent* com
     OH_NativeXComponent_RegisterCallback(component, &renderCallback_);
 }
 
+
 void PluginRender::OnSurfaceCreated(OH_NativeXComponent* component, void* window) {
-    LOGI("OnSurfaceCreated");
+    LOGI("OnSurfaceCreated %s", id_.c_str());
     uint64_t width;
     uint64_t height;
     OH_NativeXComponent_GetXComponentSize(component, window, &width, &height);
     
     if (renderThread_ == nullptr) {
         renderThread_ = new RenderThread();
+        // Create Specific Renderer. Here hardcoded to SineWave.
+        // In full system, we might decide based on ID or args.
+        renderer_ = new SineWaveRenderer();
+        renderThread_->SetRenderer(renderer_);
         renderThread_->Start(window, width, height);
     }
 }
 
 void PluginRender::OnSurfaceChanged(OH_NativeXComponent* component, void* window) {
-    LOGI("OnSurfaceChanged");
+    LOGI("OnSurfaceChanged %s", id_.c_str());
     uint64_t width;
     uint64_t height;
     OH_NativeXComponent_GetXComponentSize(component, window, &width, &height);
@@ -79,19 +157,23 @@ void PluginRender::OnSurfaceChanged(OH_NativeXComponent* component, void* window
 }
 
 void PluginRender::OnSurfaceDestroyed(OH_NativeXComponent* component, void* window) {
-    LOGI("OnSurfaceDestroyed");
+    LOGI("OnSurfaceDestroyed %s", id_.c_str());
     if (renderThread_) {
         renderThread_->Stop();
         delete renderThread_;
         renderThread_ = nullptr;
     }
+    // Don't delete self here yet, wait for Release or implicit app lifecycle?
+    // MapLibre usually keeps it if view might be recreated.
+    // But map cleanup is good practice.
+    // ReleaseInstance(id_); // Be careful if JS implementation still holds reference.
 }
 
 void PluginRender::DispatchTouchEvent(OH_NativeXComponent* component, void* window) {
     OH_NativeXComponent_TouchEvent touchEvent;
     if (OH_NativeXComponent_GetTouchEvent(component, window, &touchEvent) == OH_NATIVEXCOMPONENT_RESULT_SUCCESS) {
         if (touchEvent.type == OH_NativeXComponent_TouchEventType::OH_NATIVEXCOMPONENT_UP) {
-            LOGI("Touch UP detected, toggling pause");
+            LOGI("Touch UP detected, toggling pause for %s", id_.c_str());
             if (renderThread_) {
                 renderThread_->TogglePause();
             }
