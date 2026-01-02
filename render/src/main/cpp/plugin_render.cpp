@@ -1,6 +1,6 @@
 #include "plugin_render.h"
 #include "render_common.h"
-#include <uv.h>
+#include <ace/xcomponent/native_interface_xcomponent.h>
 
 PluginRender* PluginRender::instance_ = nullptr;
 
@@ -88,5 +88,13 @@ void PluginRender::OnSurfaceDestroyed(OH_NativeXComponent* component, void* wind
 }
 
 void PluginRender::DispatchTouchEvent(OH_NativeXComponent* component, void* window) {
-    // Optional: Handle touch events natively
+    OH_NativeXComponent_TouchEvent touchEvent;
+    if (OH_NativeXComponent_GetTouchEvent(component, window, &touchEvent) == OH_NATIVEXCOMPONENT_RESULT_SUCCESS) {
+        if (touchEvent.type == OH_NativeXComponent_TouchEventType::OH_NATIVEXCOMPONENT_UP) {
+            LOGI("Touch UP detected, toggling pause");
+            if (renderThread_) {
+                renderThread_->TogglePause();
+            }
+        }
+    }
 }
