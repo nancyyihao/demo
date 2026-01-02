@@ -17,6 +17,7 @@ add_library(render SHARED
     render_thread.cpp
     egl_core.cpp
     samples/sine_wave_renderer.cpp
+    samples/cosine_wave_renderer.cpp
 )
 target_link_libraries(render PUBLIC 
     libace_napi.z.so

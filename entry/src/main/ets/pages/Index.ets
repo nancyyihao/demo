@@ -5,14 +5,15 @@ import { RenderView } from 'render';
 struct Index {
   build() {
     Column() {
-      RenderView({ renderId: 'render_view_1' })
+      // Top: Sine Wave (default or explicit 'sin')
+      RenderView({ renderId: 'render_view_sin' })
         .width('100%')
         .height('50%')
       
-      // Divider for visual separation
       Divider().color(Color.Black).strokeWidth(2)
       
-      RenderView({ renderId: 'render_view_2' })
+      // Bottom: Cosine Wave (id contains 'cos')
+      RenderView({ renderId: 'render_view_cos' })
         .width('100%')
         .height('50%')
     }

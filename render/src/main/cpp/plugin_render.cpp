@@ -130,6 +130,8 @@ void PluginRender::SetNativeXComponent(std::string& id, OH_NativeXComponent* com
 }
 
 
+#include "samples/cosine_wave_renderer.h"
+
 void PluginRender::OnSurfaceCreated(OH_NativeXComponent* component, void* window) {
     LOGI("OnSurfaceCreated %s", id_.c_str());
     uint64_t width;
@@ -138,9 +140,15 @@ void PluginRender::OnSurfaceCreated(OH_NativeXComponent* component, void* window
     
     if (renderThread_ == nullptr) {
         renderThread_ = new RenderThread();
-        // Create Specific Renderer. Here hardcoded to SineWave.
-        // In full system, we might decide based on ID or args.
-        renderer_ = new SineWaveRenderer();
+        // Choose renderer based on ID
+        if (id_.find("cos") != std::string::npos) {
+             LOGI("Using CosineWaveRenderer");
+             renderer_ = new CosineWaveRenderer();
+        } else {
+             LOGI("Using SineWaveRenderer");
+             renderer_ = new SineWaveRenderer();
+        }
+        
         renderThread_->SetRenderer(renderer_);
         renderThread_->Start(window, width, height);
     }
