@@ -6,11 +6,15 @@
 #include <atomic>
 #include <thread>
 #include <mutex>
+#include <queue>
+#include <functional>
 #include "egl_core.h"
 #include "renderer_interface.h"
 
 class RenderThread {
 public:
+    using Task = std::function<void()>;
+
     RenderThread();
     ~RenderThread();
 
@@ -20,6 +24,7 @@ public:
     void Stop();
 
     void SetRenderer(IRenderer* renderer);
+    void PostTask(Task task);
 
 private:
     void RenderLoop();
@@ -30,16 +35,15 @@ private:
     int height_ = 0;
 
     EGLCore* eglCore_ = nullptr;
-    IRenderer* renderer_ = nullptr; // Owned by caller or thread? Let's say owned by thread for now, or just referenced.
-    // For this refactor, let's assume PluginRender creates and owns RenderThread, and sets a Renderer.
-    // Ideally RenderThread should own Renderer or manage its lifecycle.
+    IRenderer* renderer_ = nullptr;
 
     std::thread thread_;
     std::atomic<bool> running_{false};
-    std::atomic<bool> paused_{false};
+    bool paused_ = false;
+    
     std::mutex mtx_;
     std::condition_variable cv_;
-    bool frameReady_ = false;
+    std::deque<Task> taskQueue_;
     
     OH_NativeVSync* nativeVSync_ = nullptr;
 };
