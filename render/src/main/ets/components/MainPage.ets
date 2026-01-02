@@ -15,7 +15,8 @@ export struct MainPage {
           .fontWeight(FontWeight.Bold)
           .onClick(() => {
             this.message = 'Welcome';
-            hilog.info(DOMAIN, 'testTag', 'Test NAPI 2 + 3 = %{public}d', testNapi.add(2, 3));
+            // testNapi.add is removed
+            // hilog.info(DOMAIN, 'testTag', 'Test NAPI 2 + 3 = %{public}d', testNapi.add(2, 3));
           })
       }
       .width('100%')

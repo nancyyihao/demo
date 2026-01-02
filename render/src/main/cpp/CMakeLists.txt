@@ -11,5 +11,15 @@ endif()
 include_directories(${NATIVERENDER_ROOT_PATH}
                     ${NATIVERENDER_ROOT_PATH}/include)
 
-add_library(render SHARED napi_init.cpp)
-target_link_libraries(render PUBLIC libace_napi.z.so)
+add_library(render SHARED 
+    napi_init.cpp
+    plugin_render.cpp
+    render_thread.cpp
+)
+target_link_libraries(render PUBLIC 
+    libace_napi.z.so
+    libace_ndk.z.so
+    libEGL.so
+    libGLESv3.so
+    libhilog_ndk.z.so
+)
